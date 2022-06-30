@@ -2,6 +2,7 @@
 #undef min
 #include <string>
 #include <vector>
+#include <cstring>
 
 using namespace std;
 
@@ -11,7 +12,11 @@ void displayScroll(char *);
 void hexDump(uint8_t*, uint16_t);
 
 #include <ArduinoJson.h>
-#include <ss_oled.h>
+#include "OLED_helper.h"
+#include "helper.h"
+#include "nRF_AES.h"
+#include "nRF_Random.h"
+#include "nRF_Hash.h"
 #include "Settings.h"
 #include "lora_helper.h"
 #include "Commands.h"
@@ -37,11 +42,12 @@ void setup() {
     oledWriteString(&ssoled, 0, 1, 0, "LoRa Companion", FONT_NORMAL, 0, 1);
     oledSetBackBuffer(&ssoled, ucBackBuffer);
     delay(2000);
+    hasOLED = true;
   }
   Serial.println("LoRa Setup");
   delay(1000);
   bool rslt = setupLoRa();
-  if (!rslt) {
+  if (!rslt && hasOLED) {
     oledFill(&ssoled, 1, 1);
     oledWriteString(&ssoled, 0, 1, 0, "LoRa Companion", FONT_NORMAL, 1, 1);
     oledWriteString(&ssoled, 0, 5, 2, "Ouch!", FONT_LARGE, 1, 1);
@@ -50,12 +56,17 @@ void setup() {
     oledDumpBuffer(&ssoled, NULL);
     while (true);
   }
-  oledFill(&ssoled, 0, 1);
-  for (uint8_t ix = 0; ix < 10; ix++) {
-    oledWriteString(&ssoled, 0, ix, 0, " READY ", FONT_LARGE, 0, 1);
-    delay(100);
+  setupAES();
+  if (hasOLED) {
+    oledFill(&ssoled, 0, 1);
+    for (uint8_t ix = 0; ix < 10; ix++) {
+      oledWriteString(&ssoled, 0, ix, 0, " READY ", FONT_LARGE, 0, 1);
+      delay(100);
+    }
+    posY = 3;
   }
-  posY = 3;
+  sprintf(myName, "%s", api.ble.mac.get());
+  Serial.printf("My Name: %s\n", myName);
   lastCheck = millis();
   cmdCount = sizeof(cmds) / sizeof(myCommand);
 } /* setup() */

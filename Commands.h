@@ -8,6 +8,11 @@ void handleSF(char *);
 void handleCR(char *);
 void handleTX(char *);
 void handleP2P(char *);
+void handleAES(char*);
+void handlePassword(char*);
+void handleIV(char*);
+void sendBlock(uint8_t*, uint8_t);
+void handleJSON(char*);
 
 vector<string> userStrings;
 uint8_t userMode = 0;
@@ -28,6 +33,10 @@ myCommand cmds[] = {
   {handleSF, "sf", "Gets/sets the working spreading factor."},
   {handleCR, "cr", "Gets/sets the working coding rate."},
   {handleTX, "tx", "Gets/sets the working TX power."},
+  {handleAES, "aes", "Gets/sets AES encryption status."},
+  {handlePassword, "pwd", "Gets/sets AES password."},
+  {handleIV, "iv", "Gets/sets AES IV."},
+  {handleJSON, "json", "Gets/sets JSON sending status."},
 };
 
 void handleHelp(char *param) {
@@ -78,7 +87,43 @@ void sendString(string userString) {
     userMode = 1;
     return;
   }
-  sendMsg((char*)userString.c_str());
+  /*
+    TODO: check whether needJSON is true,
+    And if so, transform userString into a JSON packet:
+    {"UUID":"xxxxxxxx","from":"<something>","cmd":"<userString>"}
+    from could be the chip's UUID
+  */
+  if (needJSON) {
+    uint8_t tempUUID[4];
+    char plainUUID[9] = {0};
+    rnd.generate(tempUUID, 4);
+    array2hex(tempUUID, 4, plainUUID);
+    plainUUID[8] = 0;
+
+    DynamicJsonDocument obj(512);
+    obj["UUID"] = plainUUID;
+    obj["from"] = myName;
+    obj["cmd"] = userString.c_str();
+    String myString;
+    serializeJson(obj, myString);
+    userString = myString.c_str();
+  }
+  uint8_t myLen = aes.blockLen(userString.size());
+  char plainText[myLen + 1] = {0};
+  strcpy(plainText, (char*)userString.c_str());
+  if (!needAES) sendMsg(plainText);
+  else {
+    // A function that calculates the required length. √
+    char encBuf[myLen + 1] = {0}; // Let's make sure we have enough space for the encrypted string
+    int rslt = aes.Process(plainText, myLen, myIV, myPWD, 16, encBuf, aes.encryptFlag, aes.ecbMode);
+    if (rslt < 0) {
+      Serial.printf("Error %d in Process ECB Encrypt\n", rslt);
+      return;
+    }
+    // Serial.println("ECB Encrypted:");
+    // hexDump((uint8_t*)encBuf, myLen);
+    sendBlock((uint8_t*)encBuf, myLen);
+  }
 }
 
 void handleFreq(char *param) {
@@ -117,7 +162,7 @@ void handleBW(char*param) {
   int i = sscanf(param, "%*s %d", &value);
   if (strcmp("bw", param) == 0) {
     // no parameters
-    sprintf(msg, "P2P bandwidth: %d KHz\n", bw);
+    sprintf(msg, "P2P bandwidth: %d / %d KHz\n", bw, myBWs[bw]);
     Serial.print(msg);
     sprintf(msg, "BW: %d KHz", bw);
     displayScroll(msg);
@@ -173,7 +218,7 @@ void handleSF(char*param) {
 
 void handleCR(char*param) {
   int value;
-  int i = sscanf(param, "/%*s %d", &value);
+  int i = sscanf(param, "%*s %d", &value);
   if (i == -1) {
     // no parameters
     sprintf(msg, "P2P CR: 4/%d\n", (cr + 5));
@@ -202,7 +247,7 @@ void handleCR(char*param) {
 
 void handleTX(char*param) {
   int value;
-  int i = sscanf(param, "/%*s %d", &value);
+  int i = sscanf(param, "%*s %d", &value);
   if (i == -1) {
     // no parameters
     sprintf(msg, "P2P TX power: %d\n", txPower);
@@ -229,6 +274,30 @@ void handleTX(char*param) {
   }
 }
 
+void handleAES(char* param) {
+  int value;
+  int i = sscanf(param, "%*s %d", &value);
+  if (i == -1) {
+    // no parameters
+    sprintf(msg, "AES: %s\n", needAES ? "on" : "off");
+    Serial.print(msg);
+    displayScroll(msg);
+    return;
+  } else {
+    // aes 0 = off, aes 1 = on
+    if (value < 0 || value > 1) {
+      sprintf(msg, "Invalid value: %d. Use 0 for OFF or 1 for ON.\n", value);
+      Serial.print(msg);
+      return;
+    }
+    needAES = value == 1;
+    sprintf(msg, "AES: %s", needAES ? "on" : "off");
+    displayScroll(msg);
+    Serial.println(msg);
+    return;
+  }
+}
+
 void handleP2P(char *param) {
   float f0 = myFreq / 1e6, f1 = api.lorawan.pfreq.get() / 1e6;
   // check stored value vs real value
@@ -250,4 +319,102 @@ void handleP2P(char *param) {
   Serial.print(msg);
   sprintf(msg, "TX power: %d", txPower);
   displayScroll(msg);
+}
+
+void handlePassword(char* param) {
+  char pwd[33];
+  memset(pwd, 0, 33);
+  int i = sscanf(param, "%*s %s", pwd);
+  if (i == -1) {
+    // no parameters
+    sprintf(msg, "pwd: yeah right");
+    Serial.println(msg);
+    displayScroll(msg);
+    return;
+  } else {
+    // either 16 chars or 32 hex chars
+    if (strlen(pwd) == 16) {
+      memcpy(myPWD, pwd, 16);
+      sprintf(msg, "Password set.");
+      Serial.println(msg);
+      displayScroll(msg);
+      // hexDump(myPWD, 16);
+      return;
+    } else if (strlen(pwd) == 32) {
+      hex2array(pwd, myPWD, 32);
+      sprintf(msg, "Password set.");
+      Serial.println(msg);
+      displayScroll(msg);
+      // hexDump(myPWD, 16);
+      return;
+    }
+    sprintf(msg, "AES: wrong pwd size!");
+    displayScroll(msg);
+    Serial.println(msg);
+    sprintf(msg, "(Should be 16 bytes)");
+    displayScroll(msg);
+    Serial.println(msg);
+    return;
+  }
+}
+
+void handleIV(char* param) {
+  char iv[33];
+  memset(iv, 0, 33);
+  int i = sscanf(param, "%*s %s", iv);
+  if (i == -1) {
+    // no parameters
+    sprintf(msg, "IV: yeah right");
+    Serial.println(msg);
+    displayScroll(msg);
+    return;
+  } else {
+    // either 16 chars or 32 hex chars
+    if (strlen(iv) == 16) {
+      memcpy(myIV, iv, 16);
+      sprintf(msg, "IV set.");
+      Serial.println(msg);
+      displayScroll(msg);
+      // hexDump(myIV, 16);
+      return;
+    } else if (strlen(iv) == 32) {
+      hex2array(iv, myIV, 32);
+      sprintf(msg, "IV set.");
+      Serial.println(msg);
+      displayScroll(msg);
+      // hexDump(myIV, 16);
+      return;
+    }
+    sprintf(msg, "AES: wrong IV size!");
+    displayScroll(msg);
+    Serial.println(msg);
+    sprintf(msg, "(Should be 16 bytes)");
+    displayScroll(msg);
+    Serial.println(msg);
+    return;
+  }
+}
+
+void handleJSON(char* param) {
+  int value;
+  int i = sscanf(param, "%*s %d", &value);
+  if (i == -1) {
+    // no parameters
+    sprintf(msg, "JSON: %s\n", needJSON ? "on" : "off");
+    Serial.print(msg);
+    displayScroll(msg);
+    return;
+  } else {
+    // json 0 = off, json 1 = on
+    if (value < 0 || value > 1) {
+      sprintf(msg, "Invalid value: %d. Use 0 for OFF or 1 for ON.\n", value);
+      Serial.print(msg);
+      return;
+    }
+    needJSON = value == 1;
+    sprintf(msg, "JSON: %s", needJSON ? "on" : "off");
+    displayScroll(msg);
+    Serial.println(msg);
+    return;
+  }
 }

@@ -1,7 +1,5 @@
 extern SSOLED ssoled;
 extern bool isSending;
-int posY = 2; // First 2 lines are reserved for the title.
-// Since displayScroll starts with incrementing posY, we start with posY = 1
 
 void send_cb(void) {
   // TX callback
@@ -17,54 +15,73 @@ void send_cb(void) {
 
 void recv_cb(rui_lora_p2p_recv_t data) {
   uint16_t ln = data.BufferSize;
-  hexDump(data.Buffer, ln);
+  char plainText[ln + 1] = {0};
+  // hexDump(data.Buffer, ln);
   char buff[92];
   sprintf(buff, "Incoming message, length: %d, RSSI: %d, SNR: %d", data.BufferSize, data.Rssi, data.Snr);
   Serial.println(buff);
-  sprintf(buff, "%d-byte packet", data.BufferSize);
-  oledFill(&ssoled, 1, 1);
-  oledDumpBuffer(&ssoled, NULL);
-  oledWriteString(&ssoled, 0, 3, 0, "Incoming!", FONT_NORMAL, 0, 1);
-  oledWriteString(&ssoled, 0, 0, 1, buff, FONT_NORMAL, 0, 1);
-  sprintf(buff, "RSSI: %d", data.Rssi);
-  oledWriteString(&ssoled, 0, 0, 2, buff, FONT_NORMAL, 0, 1);
-  sprintf(buff, "SNR: %d", data.Snr);
-  oledWriteString(&ssoled, 0, 0, 3, buff, FONT_NORMAL, 0, 1);
-
+  if (hasOLED) {
+    sprintf(buff, "%d-byte packet", data.BufferSize);
+    oledFill(&ssoled, 1, 1);
+    oledDumpBuffer(&ssoled, NULL);
+    oledWriteString(&ssoled, 0, 3, 0, "Incoming!", FONT_NORMAL, 0, 1);
+    oledWriteString(&ssoled, 0, 0, 1, buff, FONT_NORMAL, 0, 1);
+    sprintf(buff, "RSSI: %d", data.Rssi);
+    oledWriteString(&ssoled, 0, 0, 2, buff, FONT_NORMAL, 0, 1);
+    sprintf(buff, "SNR: %d", data.Snr);
+    oledWriteString(&ssoled, 0, 0, 3, buff, FONT_NORMAL, 0, 1);
+  }
+  if (needAES) {
+    int rslt = aes.Process((char*)data.Buffer, ln, myIV, myPWD, 16, plainText, aes.decryptFlag, aes.ecbMode);
+    if (rslt < 0) {
+      Serial.printf("Error %d in Process ECB Decrypt\n", rslt);
+      return;
+    }
+    // Serial.println("ECB Decrypt:");
+  } else {
+    memcpy(plainText, data.Buffer, ln);
+  }
+  // hexDump((uint8_t*)plainText, ln);
   StaticJsonDocument<200> doc;
-  DeserializationError error = deserializeJson(doc, data.Buffer);
+  DeserializationError error = deserializeJson(doc, plainText);
   if (!error) {
     const char *myID = doc["UUID"];
     Serial.print(" * ID: ");
     Serial.println(myID);
-    sprintf(buff, "ID: %s", (char*)myID);
-    oledWriteString(&ssoled, 0, 0, 4, buff, FONT_NORMAL, 0, 1);
-
+    if (hasOLED) {
+      sprintf(buff, "ID: %s", (char*)myID);
+      oledWriteString(&ssoled, 0, 0, 4, buff, FONT_NORMAL, 0, 1);
+    }
     // Print sender
     const char *from = doc["from"];
     Serial.print(" * Sender: ");
     Serial.println(from);
-    sprintf(buff, "from: %s", (char*)from);
-    oledWriteString(&ssoled, 0, 0, 5, buff, FONT_NORMAL, 0, 1);
-
+    if (hasOLED) {
+      sprintf(buff, "from: %s", (char*)from);
+      oledWriteString(&ssoled, 0, 0, 5, buff, FONT_NORMAL, 0, 1);
+    }
     // Print command
     const char *cmd = doc["cmd"];
     Serial.print(" * Command: ");
     Serial.println(cmd);
-    sprintf(buff, "cmd: %s", (char*)cmd);
-    oledWriteString(&ssoled, 0, 0, 6, buff, FONT_NORMAL, 0, 1);
-    posY = 6;
+    if (hasOLED) {
+      sprintf(buff, "cmd: %s", (char*)cmd);
+      oledWriteString(&ssoled, 0, 0, 6, buff, FONT_NORMAL, 0, 1);
+      posY = 6;
+    }
     return; // End for JSON messages
   }
-  // Let's pretty print the message.
-  oledSetTextWrap(&ssoled, true);
-  oledWriteString(&ssoled, 0, 0, 4, (char*)data.Buffer, FONT_NORMAL, 0, 1);
+  if (hasOLED) {
+    // Let's pretty print the message.
+    oledSetTextWrap(&ssoled, true);
+    oledWriteString(&ssoled, 0, 0, 4, plainText, FONT_NORMAL, 0, 1);
+    posY = 6;
+  }
   Serial.println("Message:");
-  char msg[data.BufferSize + 1];
-  memset(msg, 0, data.BufferSize + 1);
-  memcpy(msg, data.Buffer, data.BufferSize);
-  Serial.println(msg);
-  posY = 6;
+  // char msg[data.BufferSize + 1];
+  // memset(msg, 0, data.BufferSize + 1);
+  // memcpy(msg, data.Buffer, data.BufferSize);
+  Serial.println(plainText);
 }
 
 bool setupLoRa() {
@@ -153,16 +170,30 @@ void sendMsg(char* msgToSend) {
   displayScroll(msgToSend);
 }
 
-void displayScroll(char *msgToSend) {
-  posY += 1;
-  if (posY == 8) {
-    posY = 7; // keep it at 7, the last line
-    for (uint8_t i = 0; i < 8; i++) {
-      // and scroll, one pixel line – not text line – at a time.
-      oledScrollBuffer(&ssoled, 0, 127, 3, 7, 1);
-      oledDumpBuffer(&ssoled, NULL);
+void sendBlock(uint8_t* msgToSend, uint8_t ln) {
+  if (isSending) {
+    uint8_t count = 10;
+    while (isSending && count-- > 0) {
+      Serial.write('.');
+      delay(500);
+    }
+    Serial.write('\n');
+    if (isSending) {
+      Serial.println("isSending strill true after 5 seconds!");
+      return;
     }
   }
-  // then display text
-  oledWriteString(&ssoled, 0, 0, posY, msgToSend, FONT_8x8, 0, 1);
+  isSending = true;
+  // NO NEED
+  // With api.lorawan.precv(65533), you can still can do TX without calling api.lorawan.precv(0).
+  // api.lorawan.precv(0);
+  // turn off reception – a little hackish, but without that send might fail.
+  // memset(msg, 0, ln + 20);
+  // Serial.println("Sending:");
+  // hexDump(msgToSend, ln);
+  bool rslt = api.lorawan.psend(ln, msgToSend);
+  // when done it will call void send_cb(void);
+  Serial.printf("Sending via P2P: %s\n", rslt ? "ok" : "x");
+  sprintf(msg, "Sent %s via P2P:", rslt ? "[o]" : "[x]");
+  displayScroll(msg);
 }
