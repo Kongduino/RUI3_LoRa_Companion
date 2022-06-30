@@ -21,3 +21,4 @@ Available commands: 11
  . json: Gets/sets JSON sending status.
 ```
 
+![Screenshot](Screenshot.png)
