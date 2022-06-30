@@ -35,8 +35,7 @@ void setup() {
   } // Just for show
   Serial.println("0!");
   Serial.println("LoRa Companion");
-  int rc;
-  rc = oledInit(&ssoled, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 400000L); // use standard I2C bus at 400Khz
+  int rc = oledInit(&ssoled, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 400000L); // use standard I2C bus at 400Khz
   if (rc != OLED_NOT_FOUND) {
     oledFill(&ssoled, 0, 1);
     oledWriteString(&ssoled, 0, 1, 0, "LoRa Companion", FONT_NORMAL, 0, 1);

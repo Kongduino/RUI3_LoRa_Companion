@@ -45,29 +45,13 @@ void recv_cb(rui_lora_p2p_recv_t data) {
   StaticJsonDocument<200> doc;
   DeserializationError error = deserializeJson(doc, plainText);
   if (!error) {
-    const char *myID = doc["UUID"];
-    Serial.print(" * ID: ");
-    Serial.println(myID);
-    if (hasOLED) {
-      sprintf(buff, "ID: %s", (char*)myID);
-      oledWriteString(&ssoled, 0, 0, 4, buff, FONT_NORMAL, 0, 1);
-    }
-    // Print sender
-    const char *from = doc["from"];
-    Serial.print(" * Sender: ");
-    Serial.println(from);
-    if (hasOLED) {
-      sprintf(buff, "from: %s", (char*)from);
-      oledWriteString(&ssoled, 0, 0, 5, buff, FONT_NORMAL, 0, 1);
-    }
-    // Print command
-    const char *cmd = doc["cmd"];
-    Serial.print(" * Command: ");
-    Serial.println(cmd);
-    if (hasOLED) {
-      sprintf(buff, "cmd: %s", (char*)cmd);
-      oledWriteString(&ssoled, 0, 0, 6, buff, FONT_NORMAL, 0, 1);
-      posY = 6;
+    posY = 4;
+    JsonObject root = doc.as<JsonObject>();
+    // using C++11 syntax (preferred):
+    for (JsonPair kv : root) {
+      sprintf(buff, " * %s: %s", kv.key().c_str(), kv.value().as<char*>());
+      Serial.println(buff);
+      if (hasOLED) oledWriteString(&ssoled, 0, 0, posY++, buff + 1, FONT_NORMAL, 0, 1);
     }
     return; // End for JSON messages
   }
