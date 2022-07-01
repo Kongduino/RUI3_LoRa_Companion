@@ -106,6 +106,8 @@ int nRFCrypto_AES::Process(
 }
 
 uint8_t nRFCrypto_AES::blockLen(uint8_t msgLen) {
+  // takes in msgLen, and returns the necessary length, a multiple of 16.
+  // AES requires blocks of 16 bytes to run properly.
   if (msgLen < 16) {
     return 16;
   } else {
