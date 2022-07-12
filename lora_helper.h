@@ -11,6 +11,7 @@ void send_cb(void) {
   // - If api.lorawan.precv(65534) is called, the device will be set as RX mode until api.lorawan.precv(0) is called.
   // If api.lorawan.precv(65533) is called, the device will be set as RX mode, but still can do TX without calling api.lorawan.precv(0).
   isSending = false;
+  api.lorawan.precv(65534);
 }
 
 void recv_cb(rui_lora_p2p_recv_t data) {
@@ -118,7 +119,7 @@ bool setupLoRa() {
   api.lorawan.registerPRecvCallback(recv_cb);
   api.lorawan.registerPSendCallback(send_cb);
 
-  rslt = api.lorawan.precv(65533);
+  rslt = api.lorawan.precv(65534);
   Serial.printf("Reset Rx mode %s\n", rslt ? "ok" : "x");
   if (!rslt) return false;
 
