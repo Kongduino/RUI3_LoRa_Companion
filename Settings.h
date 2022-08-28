@@ -1,6 +1,6 @@
 double myFreq = 868125000;
 uint16_t sf = 12;
-uint16_t bw = 7;
+uint16_t bw = 0;
 uint16_t cr = 0;
 uint16_t preamble = 8;
 uint16_t txPower = 22;
@@ -15,8 +15,11 @@ char myName[32] = {0};
 // ------------------------------------------------------------------
 // I mean it!
 // ------------------------------------------------------------------
-uint32_t myBWs[10] = {125, 125, 125, 125, 125, 125, 125, 125, 250, 500};
+// Pre-3.5.0b:
+uint8_t maxBW = 9;
 // There's a bug in the API – BW values below 125 haven't been implemented.
+// 3.5.0b and onwards:
+uint32_t myBWs[10] = {125, 250, 500, 7.8, 10.4, 15.63, 20.83, 31.25, 41.67, 62.5};
 
 static uint8_t ucBackBuffer[1024];
 #define SDA_PIN -1

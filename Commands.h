@@ -170,18 +170,19 @@ void handleBW(char*param) {
   } else {
     // bw xxxx set BW
     value = atof(param + 2);
-    if (value > 9) {
-      sprintf(msg, "Invalid BW value: %d\n", value);
+    if (value > maxBW) {
+      sprintf(msg, "Invalid BW value: %d [mas: %d]\n", value, maxBW);
       Serial.print(msg);
       return;
     }
-    bw = myBWs[value];
+    bw = value;
+    if (!fullBW) value = myBWs[bw];
     api.lorawan.precv(0);
     // turn off reception
-    sprintf(msg, "Set P2P bandwidth to %d/%d: %s\n", value, bw, api.lorawan.pbw.set(bw) ? "Success" : "Fail");
+    sprintf(msg, "Set P2P bandwidth to %d/%d: %s\n", value, bw, api.lorawan.pbw.set(value) ? "Success" : "Fail");
     Serial.print(msg);
     api.lorawan.precv(65533);
-    sprintf(msg, "New BW: %d", bw);
+    sprintf(msg, "New BW: %d", myBWs[bw]);
     displayScroll(msg);
     return;
   }
@@ -301,21 +302,25 @@ void handleAES(char* param) {
 void handleP2P(char *param) {
   float f0 = myFreq / 1e6, f1 = api.lorawan.pfreq.get() / 1e6;
   // check stored value vs real value
-  sprintf(msg, "P2P frequency: %.3f/%.3f MHz\n", f0, f1);
+  Serial.println("(in-memory var vs chip setting)");
+  sprintf(msg, "P2P frequency: %.3f MHz vs %.3f MHz\n", f0, f1);
   Serial.print(msg);
   sprintf(msg, "Fq: %.3f MHz\n", f1);
   displayScroll(msg);
-  sprintf(msg, "P2P SF: %d\n", sf);
+  sprintf(msg, "P2P SF: %d vs %d\n", sf, api.lorawan.psf.get());
   Serial.print(msg);
   displayScroll(msg);
-  sprintf(msg, "P2P bandwidth: %d KHz\n", bw);
+  if (fullBW)
+    sprintf(msg, "P2P bandwidth: %d, ie %d KHz vs %d, ie %d KHz\n", bw, myBWs[bw], api.lorawan.pbw.get(), myBWs[api.lorawan.pbw.get()]);
+  else
+    sprintf(msg, "P2P bandwidth: %d, ie %d KHz vs %d KHz\n", bw, myBWs[bw], api.lorawan.pbw.get());
   Serial.print(msg);
   sprintf(msg, "BW: %d KHz", bw);
   displayScroll(msg);
-  sprintf(msg, "P2P C/R: 4/%d\n", (cr + 5));
+  sprintf(msg, "P2P C/R: 4/%d vs 4/%d\n", (cr + 5), (api.lorawan.pbw.get() + 5));
   Serial.print(msg);
   displayScroll(msg);
-  sprintf(msg, "P2P TX power: %d\n", txPower);
+  sprintf(msg, "P2P TX power: %d vs %d\n", txPower, api.lorawan.ptp.get());
   Serial.print(msg);
   sprintf(msg, "TX power: %d", txPower);
   displayScroll(msg);

@@ -41,7 +41,29 @@ void setup() {
     delay(500);
   } // Just for show
   Serial.println("0!");
+  /*
+    5, 4, 3, 2, 1, 0!
+    LoRa Companion
+    RUI3 version: RUI_3.5.0b_165_RAK4631
+    LoRa Setup
+    P2P mode: ok
+    Freq 868.125: ok
+    SF 12: ok
+    BW 0, 125 KHz: x
+    Lib begin
+    AES begin
+    RND begin
+    My Name: C0F15EAE0947
+  */
   Serial.println("LoRa Companion");
+  strcpy(version, api.system.firmwareVersion.get().c_str());
+  Serial.printf("RUI3 version: %s\n", version);
+  if (version[6] < '5') {
+    fullBW = false;
+    maxBW = 2;
+  }
+  Serial.printf("Full BW version: %s\n", fullBW ? "yes" : "no");
+
   int rc = oledInit(&ssoled, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 400000L); // use standard I2C bus at 400Khz
   if (rc != OLED_NOT_FOUND) {
     oledFill(&ssoled, 0, 1);
