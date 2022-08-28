@@ -1,4 +1,5 @@
-#include <ss_oled.h>
+#include <BitBang_I2C.h> // Click here to get the library: http://librarymanager/All#BitBang_I2C By Larry Bank
+#include <ss_oled.h> // Click here to get the library: http://librarymanager/All#sh1107 By Larry Bank
 
 extern SSOLED ssoled;
 bool hasOLED = false;

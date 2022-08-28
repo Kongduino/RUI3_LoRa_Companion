@@ -1,3 +1,4 @@
+// This file's part of the nRF52840 BSP
 #include "crys_hash.h"
 
 class nRFCrypto_Hash {

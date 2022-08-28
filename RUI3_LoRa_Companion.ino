@@ -1,3 +1,10 @@
+/*
+  RUI3 LoRa Companion
+  A small LoRa Dongle for RUI3 – works on RAK4631-R and RAK3172.
+  Docs center: https://docs.rakwireless.com/RUI3/
+  Installing RUI3: https://docs.rakwireless.com/RUI3/Supported-IDE/
+*/
+
 #undef max
 #undef min
 #include <string>
@@ -11,8 +18,8 @@ void send_cb();
 void displayScroll(char *);
 void hexDump(uint8_t*, uint16_t);
 
-#include <ArduinoJson.h>
-#include "OLED_helper.h"
+#include <ArduinoJson.h> // Click here to get the library: http://librarymanager/All#ArduinoJson By Benoit Blanchon
+#include "OLED_helper.h" // See this tab for libraries to install
 #include "helper.h"
 #include "nRF_AES.h"
 #include "nRF_Random.h"

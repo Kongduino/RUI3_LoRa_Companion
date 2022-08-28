@@ -1,3 +1,4 @@
+// These files are part of the nRF52840 BSP
 #include "ssi_aes.h"
 #include "sns_silib.h"
 

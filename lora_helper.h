@@ -122,7 +122,6 @@ bool setupLoRa() {
   rslt = api.lorawan.precv(65534);
   Serial.printf("Reset Rx mode %s\n", rslt ? "ok" : "x");
   if (!rslt) return false;
-
   return true;
 }
 
@@ -135,7 +134,7 @@ void sendMsg(char* msgToSend) {
     }
     Serial.write('\n');
     if (isSending) {
-      Serial.println("isSending strill true after 5 seconds!");
+      Serial.println("isSending still true after 5 seconds!");
       return;
     }
   }
