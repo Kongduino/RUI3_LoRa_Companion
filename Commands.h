@@ -150,7 +150,7 @@ void handleFreq(char *param) {
     // turn off reception
     sprintf(msg, "Set P2P frequency to %3.3f: %s MHz\n", (myFreq / 1e6), api.lorawan.pfreq.set(myFreq) ? "Success" : "Fail");
     Serial.print(msg);
-    api.lorawan.precv(65533);
+    api.lorawan.precv(65534);
     sprintf(msg, "New freq: %.3f", value);
     displayScroll(msg);
     return;
@@ -171,17 +171,17 @@ void handleBW(char*param) {
     // bw xxxx set BW
     value = atof(param + 2);
     if (value > maxBW) {
-      sprintf(msg, "Invalid BW value: %d [mas: %d]\n", value, maxBW);
+      sprintf(msg, "Invalid BW value: %d [max: %d]\n", value, maxBW);
       Serial.print(msg);
       return;
     }
     bw = value;
-    if (!fullBW) value = myBWs[bw];
     api.lorawan.precv(0);
     // turn off reception
-    sprintf(msg, "Set P2P bandwidth to %d/%d: %s\n", value, bw, api.lorawan.pbw.set(value) ? "Success" : "Fail");
+    if (!fullBW) sprintf(msg, "Set P2P bandwidth to %d KHz: %s\n", myBWs[bw], api.lorawan.pbw.set(myBWs[bw]) ? "Success" : "Fail");
+    else sprintf(msg, "Set P2P bandwidth to %d, ie %d KHz: %s\n", bw, myBWs[bw], api.lorawan.pbw.set(bw) ? "Success" : "Fail");
     Serial.print(msg);
-    api.lorawan.precv(65533);
+    api.lorawan.precv(65534);
     sprintf(msg, "New BW: %d", myBWs[bw]);
     displayScroll(msg);
     return;
@@ -210,7 +210,7 @@ void handleSF(char*param) {
     // turn off reception
     sprintf(msg, "Set P2P spreading factor to %d: %s\n", sf, api.lorawan.psf.set(sf) ? "Success" : "Fail");
     Serial.print(msg);
-    api.lorawan.precv(65533);
+    api.lorawan.precv(65534);
     sprintf(msg, "SF set to %d", sf);
     displayScroll(msg);
     return;
@@ -239,7 +239,7 @@ void handleCR(char*param) {
     // turn off reception
     sprintf(msg, "Set P2P coding rate to %d: %s\n", cr, api.lorawan.pcr.set(cr) ? "Success" : "Fail");
     Serial.print(msg);
-    api.lorawan.precv(65533);
+    api.lorawan.precv(65534);
     sprintf(msg, "CR set to 4/%d", (cr + 5));
     displayScroll(msg);
     return;
@@ -268,7 +268,7 @@ void handleTX(char*param) {
     // turn off reception
     sprintf(msg, "Set P2P Tx power to %d: %s\n", cr, api.lorawan.ptp.set(txPower) ? "Success" : "Fail");
     Serial.print(msg);
-    api.lorawan.precv(65533);
+    api.lorawan.precv(65534);
     sprintf(msg, "Tx pwr set to %d", txPower);
     displayScroll(msg);
     return;
@@ -317,7 +317,7 @@ void handleP2P(char *param) {
   Serial.print(msg);
   sprintf(msg, "BW: %d KHz", bw);
   displayScroll(msg);
-  sprintf(msg, "P2P C/R: 4/%d vs 4/%d\n", (cr + 5), (api.lorawan.pbw.get() + 5));
+  sprintf(msg, "P2P C/R: 4/%d vs 4/%d\n", (cr + 5), (api.lorawan.pcr.get() + 5));
   Serial.print(msg);
   displayScroll(msg);
   sprintf(msg, "P2P TX power: %d vs %d\n", txPower, api.lorawan.ptp.get());
