@@ -158,7 +158,7 @@ void handleFreq(char *param) {
 }
 
 void handleBW(char*param) {
-  int value;
+  uint16_t value;
   int i = sscanf(param, "%*s %d", &value);
   if (strcmp("bw", param) == 0) {
     // no parameters
@@ -178,7 +178,7 @@ void handleBW(char*param) {
     bw = value;
     api.lorawan.precv(0);
     // turn off reception
-    if (!fullBW) sprintf(msg, "Set P2P bandwidth to %d KHz: %s\n", myBWs[bw], api.lorawan.pbw.set(myBWs[bw]) ? "Success" : "Fail");
+    if (!fullBW) sprintf(msg, "Set P2P bandwidth to %d, ie %d KHz: %s\n", bw, myBWs[bw], api.lorawan.pbw.set(myBWs[bw]) ? "Success" : "Fail");
     else sprintf(msg, "Set P2P bandwidth to %d, ie %d KHz: %s\n", bw, myBWs[bw], api.lorawan.pbw.set(bw) ? "Success" : "Fail");
     Serial.print(msg);
     api.lorawan.precv(65534);

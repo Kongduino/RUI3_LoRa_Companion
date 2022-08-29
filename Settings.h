@@ -15,10 +15,10 @@ char myName[32] = {0};
 // ------------------------------------------------------------------
 // I mean it!
 // ------------------------------------------------------------------
-// Pre-3.5.0b:
-uint8_t maxBW = 9;
+// Pre-3.5.0b: 0-3
 // There's a bug in the API – BW values below 125 haven't been implemented.
 // 3.5.0b and onwards:
+uint16_t maxBW = 9;
 uint32_t myBWs[10] = {125, 250, 500, 7.8, 10.4, 15.63, 20.83, 31.25, 41.67, 62.5};
 
 static uint8_t ucBackBuffer[1024];

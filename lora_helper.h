@@ -1,7 +1,7 @@
 extern SSOLED ssoled;
 extern bool isSending;
 char version[32] = {0};
-bool fullBW = true;
+bool fullBW = false;
 
 void send_cb(void) {
   // TX callback
