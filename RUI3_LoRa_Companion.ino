@@ -58,7 +58,11 @@ void setup() {
   Serial.println("LoRa Companion");
   strcpy(version, api.system.firmwareVersion.get().c_str());
   Serial.printf("RUI3 version: %s\n", version);
-  if (version[6] < '5') {
+  uint8_t ix = 0;
+  while (version[ix++] != '3') ;
+  ix += 1;
+  Serial.printf("Version 3.%c.%c\n", version[ix], version[ix + 2]);
+  if (version[ix] < '5') {
     fullBW = false;
     maxBW = 2;
   }
