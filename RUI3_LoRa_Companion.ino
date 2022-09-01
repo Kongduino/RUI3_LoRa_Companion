@@ -58,10 +58,11 @@ void setup() {
   Serial.println("LoRa Companion");
   strcpy(version, api.system.firmwareVersion.get().c_str());
   Serial.printf("RUI3 version: %s\n", version);
-  Serial.printf("Full BW version: %s\n", fullBW ? "yes" : "no");
-  if (!fullBW) {
-    maxBW = 3;
+  if (version[6] < '5') {
+    fullBW = false;
+    maxBW = 2;
   }
+  Serial.printf("Full BW version: %s\n", fullBW ? "yes" : "no");
 
   int rc = oledInit(&ssoled, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 400000L); // use standard I2C bus at 400Khz
   if (rc != OLED_NOT_FOUND) {

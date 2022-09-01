@@ -129,7 +129,7 @@ void sendString(string userString) {
 void handleFreq(char *param) {
   if (strcmp("fq", param) == 0) {
     // no parameters
-    sprintf(msg, "P2P frequency: %.3f MHz\n", (myFreq / 1e6));
+    sprintf(msg, "Frequency: %.3f MHz\n", (myFreq / 1e6));
     Serial.print(msg);
     sprintf(msg, "Fq: %.3f MHz\n", (myFreq / 1e6));
     displayScroll(msg);
@@ -150,7 +150,7 @@ void handleFreq(char *param) {
     // turn off reception
     sprintf(msg, "Set P2P frequency to %3.3f: %s MHz\n", (myFreq / 1e6), api.lorawan.pfreq.set(myFreq) ? "Success" : "Fail");
     Serial.print(msg);
-    api.lorawan.precv(65534);
+    api.lorawan.precv(65533);
     sprintf(msg, "New freq: %.3f", value);
     displayScroll(msg);
     return;
@@ -158,13 +158,16 @@ void handleFreq(char *param) {
 }
 
 void handleBW(char*param) {
-  uint16_t value;
+  int value;
   int i = sscanf(param, "%*s %d", &value);
   if (strcmp("bw", param) == 0) {
     // no parameters
-    sprintf(msg, "P2P bandwidth: %d / %d KHz\n", bw, myBWs[bw]);
+    if (fullBW)
+      sprintf(msg, "bandwidth [f]: %d, ie %d KHz vs %d, ie %d KHz\n", bw, myBWs[bw], api.lorawan.pbw.get(), myBWs[api.lorawan.pbw.get()]);
+    else
+      sprintf(msg, "bandwidth [3]: %d, ie %d KHz vs %d KHz\n", bw, myBWs[bw], api.lorawan.pbw.get());
     Serial.print(msg);
-    sprintf(msg, "BW: %d KHz", bw);
+    sprintf(msg, "BW: %d KHz", myBWs[bw]);
     displayScroll(msg);
     return;
   } else {
@@ -176,12 +179,13 @@ void handleBW(char*param) {
       return;
     }
     bw = value;
+    if (fullBW) sprintf(msg, "Set bandwidth to %d/%d: %s\n", bw, myBWs[bw], api.lorawan.pbw.set(bw) ? "Success" : "Fail");
+    else sprintf(msg, "Set bandwidth to %d/%d: %s\n", bw, myBWs[bw], api.lorawan.pbw.set(myBWs[bw]) ? "Success" : "Fail");
     api.lorawan.precv(0);
     // turn off reception
-    if (!fullBW) sprintf(msg, "Set P2P bandwidth to %d, ie %d KHz: %s\n", bw, myBWs[bw], api.lorawan.pbw.set(myBWs[bw]) ? "Success" : "Fail");
-    else sprintf(msg, "Set P2P bandwidth to %d, ie %d KHz: %s\n", bw, myBWs[bw], api.lorawan.pbw.set(bw) ? "Success" : "Fail");
+    
     Serial.print(msg);
-    api.lorawan.precv(65534);
+    api.lorawan.precv(65533);
     sprintf(msg, "New BW: %d", myBWs[bw]);
     displayScroll(msg);
     return;
@@ -193,7 +197,7 @@ void handleSF(char*param) {
   int i = sscanf(param, "%*s %d", &value);
   if (i == -1) {
     // no parameters
-    sprintf(msg, "P2P SF: %d\n", sf);
+    sprintf(msg, "SF: %d\n", sf);
     Serial.print(msg);
     sprintf(msg, "SF: %d", sf);
     displayScroll(msg);
@@ -210,7 +214,7 @@ void handleSF(char*param) {
     // turn off reception
     sprintf(msg, "Set P2P spreading factor to %d: %s\n", sf, api.lorawan.psf.set(sf) ? "Success" : "Fail");
     Serial.print(msg);
-    api.lorawan.precv(65534);
+    api.lorawan.precv(65533);
     sprintf(msg, "SF set to %d", sf);
     displayScroll(msg);
     return;
@@ -222,7 +226,7 @@ void handleCR(char*param) {
   int i = sscanf(param, "%*s %d", &value);
   if (i == -1) {
     // no parameters
-    sprintf(msg, "P2P CR: 4/%d\n", (cr + 5));
+    sprintf(msg, "CR: 4/%d\n", (cr + 5));
     Serial.print(msg);
     sprintf(msg, "CR: 4/%d", (cr + 5));
     displayScroll(msg);
@@ -239,7 +243,7 @@ void handleCR(char*param) {
     // turn off reception
     sprintf(msg, "Set P2P coding rate to %d: %s\n", cr, api.lorawan.pcr.set(cr) ? "Success" : "Fail");
     Serial.print(msg);
-    api.lorawan.precv(65534);
+    api.lorawan.precv(65533);
     sprintf(msg, "CR set to 4/%d", (cr + 5));
     displayScroll(msg);
     return;
@@ -251,7 +255,7 @@ void handleTX(char*param) {
   int i = sscanf(param, "%*s %d", &value);
   if (i == -1) {
     // no parameters
-    sprintf(msg, "P2P TX power: %d\n", txPower);
+    sprintf(msg, "TX power: %d\n", txPower);
     Serial.print(msg);
     sprintf(msg, "Tx pwr: %d", txPower);
     displayScroll(msg);
@@ -268,7 +272,7 @@ void handleTX(char*param) {
     // turn off reception
     sprintf(msg, "Set P2P Tx power to %d: %s\n", cr, api.lorawan.ptp.set(txPower) ? "Success" : "Fail");
     Serial.print(msg);
-    api.lorawan.precv(65534);
+    api.lorawan.precv(65533);
     sprintf(msg, "Tx pwr set to %d", txPower);
     displayScroll(msg);
     return;
@@ -302,28 +306,28 @@ void handleAES(char* param) {
 void handleP2P(char *param) {
   float f0 = myFreq / 1e6, f1 = api.lorawan.pfreq.get() / 1e6;
   // check stored value vs real value
-  Serial.println("(in-memory var vs chip setting)");
-  sprintf(msg, "P2P frequency: %.3f MHz vs %.3f MHz\n", f0, f1);
+  Serial.println("+---------------+-----------+-----------+");
+  sprintf(msg, "|%-15s|%-11s|%-11s|\n", "     Value", " in-memory", "    chip");
   Serial.print(msg);
+  Serial.println("+---------------+-----------+-----------+");
   sprintf(msg, "Fq: %.3f MHz\n", f1);
   displayScroll(msg);
-  sprintf(msg, "P2P SF: %d vs %d\n", sf, api.lorawan.psf.get());
+  sprintf(msg, "|%-15s|%-11d|%-11d|\n", "SF", sf, api.lorawan.psf.get());
   Serial.print(msg);
   displayScroll(msg);
-  if (fullBW)
-    sprintf(msg, "P2P bandwidth: %d, ie %d KHz vs %d, ie %d KHz\n", bw, myBWs[bw], api.lorawan.pbw.get(), myBWs[api.lorawan.pbw.get()]);
-  else
-    sprintf(msg, "P2P bandwidth: %d, ie %d KHz vs %d KHz\n", bw, myBWs[bw], api.lorawan.pbw.get());
+  if (fullBW) sprintf(msg, "|%-15s|%d: %d KHz |%d: %d KHz |\n", "Bandwidth", bw, myBWs[bw], api.lorawan.pbw.get(), myBWs[api.lorawan.pbw.get()]);
+  else sprintf(msg, "|%-15s|%2d: %d KHz|%2d: %d KHz|\n", bw, myBWs[bw], api.lorawan.pbw.get());
   Serial.print(msg);
   sprintf(msg, "BW: %d KHz", bw);
   displayScroll(msg);
-  sprintf(msg, "P2P C/R: 4/%d vs 4/%d\n", (cr + 5), (api.lorawan.pcr.get() + 5));
+  sprintf(msg, "|%-15s|%-11d|%-11d|\n", "CR 4/", (cr + 5), (api.lorawan.pcr.get() + 5));
   Serial.print(msg);
   displayScroll(msg);
-  sprintf(msg, "P2P TX power: %d vs %d\n", txPower, api.lorawan.ptp.get());
+  sprintf(msg, "|%-15s|%-11d|%-11d|\n", "Tx Power", txPower, api.lorawan.ptp.get());
   Serial.print(msg);
   sprintf(msg, "TX power: %d", txPower);
   displayScroll(msg);
+  Serial.println("+---------------+-----------+-----------+");
 }
 
 void handlePassword(char* param) {

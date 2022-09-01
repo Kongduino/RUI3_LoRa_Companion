@@ -1,7 +1,7 @@
 extern SSOLED ssoled;
 extern bool isSending;
 char version[32] = {0};
-bool fullBW = false;
+bool fullBW = true;
 
 void send_cb(void) {
   // TX callback
@@ -96,7 +96,7 @@ bool setupLoRa() {
   sprintf(msg, "BW %d, %d KHz: %s", bw, myBWs[bw], rslt ? "ok" : "x");
   Serial.println(msg);
   displayScroll(msg);
-  // if (!rslt) return false;
+  if (!rslt) return false;
 
   rslt = api.lorawan.pcr.set(cr);
   sprintf(msg, "C/R 4/%d: %s", (cr + 5), rslt ? "ok" : "x");
@@ -123,7 +123,7 @@ bool setupLoRa() {
   api.lorawan.registerPSendCallback(send_cb);
 
   rslt = api.lorawan.precv(65534);
-  Serial.printf("Reset Rx mode %s\n", rslt ? "ok" : "x");
+  Serial.printf("Set to Rx mode: %s\n", rslt ? "ok" : "x");
   if (!rslt) return false;
   return true;
 }
@@ -138,7 +138,6 @@ void sendMsg(char* msgToSend) {
     Serial.write('\n');
     if (isSending) {
       Serial.println("isSending still true after 5 seconds!");
-      isSending = false;
       return;
     }
   }
@@ -149,13 +148,12 @@ void sendMsg(char* msgToSend) {
   // turn off reception – a little hackish, but without that send might fail.
   // memset(msg, 0, ln + 20);
   // Serial.printf("Sending `%s`: ", msgToSend);
-  isSending = !api.lorawan.psend(ln, (uint8_t*)msgToSend);
+  isSending = api.lorawan.psend(ln, (uint8_t*)msgToSend);
   // when done it will call void send_cb(void);
-  Serial.printf("Sending `%s`, len %d via P2P: %s\n", msgToSend, ln, isSending ? "x" : "ok");
-  sprintf(msg, "Sent %s via P2P:", isSending ? "[x]" : "[o]");
+  Serial.printf("Sending `%s`, len %d via P2P: %s\n", msgToSend, ln, isSending ? "ok" : "x");
+  sprintf(msg, "Sent %s via P2P:", isSending ? "[o]" : "[x]");
   displayScroll(msg);
   displayScroll(msgToSend);
-  api.lorawan.precv(65534);
 }
 
 void sendBlock(uint8_t* msgToSend, uint8_t ln) {
@@ -171,7 +169,6 @@ void sendBlock(uint8_t* msgToSend, uint8_t ln) {
       return;
     }
   }
-  isSending = true;
   // NO NEED
   // With api.lorawan.precv(65533), you can still can do TX without calling api.lorawan.precv(0).
   // api.lorawan.precv(0);
@@ -179,9 +176,10 @@ void sendBlock(uint8_t* msgToSend, uint8_t ln) {
   // memset(msg, 0, ln + 20);
   // Serial.println("Sending:");
   // hexDump(msgToSend, ln);
-  bool rslt = api.lorawan.psend(ln, msgToSend);
+  api.lorawan.precv(0);
+  isSending = api.lorawan.psend(ln, msgToSend);
   // when done it will call void send_cb(void);
-  Serial.printf("Sending via P2P: %s\n", rslt ? "ok" : "x");
-  sprintf(msg, "Sent %s via P2P:", rslt ? "[o]" : "[x]");
+  Serial.printf("Sending via P2P: %s\n", isSending ? "ok" : "x");
+  sprintf(msg, "Sent %s via P2P:", isSending ? "[o]" : "[x]");
   displayScroll(msg);
 }
